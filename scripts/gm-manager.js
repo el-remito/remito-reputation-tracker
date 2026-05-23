@@ -1,0 +1,363 @@
+import * as DataManager from './data-manager.js';
+
+const ID = 'remito-reputation-tracker';
+const { ApplicationV2 } = foundry.applications.api;
+const { DialogV2 } = foundry.applications.api;
+
+export class GmReputationManager extends ApplicationV2 {
+  static DEFAULT_OPTIONS = {
+    id: 'remito-gm-manager',
+    window: { title: 'RRT.gmManager.title', resizable: true },
+    position: { width: 640, height: 600 },
+  };
+
+  // Id of the row currently being dragged
+  _dragNodeId = null;
+
+  // Flatten the nested faction tree into a renderable list with depth metadata
+  static _flattenTree(factions, depth = 0) {
+    const rows = [];
+    const sorted = Object.values(factions).sort((a, b) => a.name.localeCompare(b.name));
+    for (const node of sorted) {
+      rows.push({ ...node, depth, hasChildren: Object.keys(node.subfactions ?? {}).length > 0 });
+      if (node.subfactions) {
+        rows.push(...GmReputationManager._flattenTree(node.subfactions, depth + 1));
+      }
+    }
+    return rows;
+  }
+
+  async _prepareContext(options) {
+    const factions = DataManager.getFactions();
+    return { rows: GmReputationManager._flattenTree(factions), factions };
+  }
+
+  async _renderHTML(context, options) {
+    const root = document.createElement('div');
+    root.classList.add('remito-gm-manager');
+
+    // ── Toolbar ──────────────────────────────────────────────────────────────
+    const toolbar = document.createElement('div');
+    toolbar.classList.add('rrt-toolbar');
+
+    const addFactionBtn = this._makeButton('RRT.gmManager.addFaction', 'rrt-btn-add', () => this._onAddNode(null, 'faction'));
+    const addCategoryBtn = this._makeButton('RRT.gmManager.addCategory', 'rrt-btn-add', () => this._onAddNode(null, 'category'));
+    const addNpcBtn = this._makeButton('RRT.gmManager.addNpcTop', 'rrt-btn-add', () => this._onAddNode(null, 'npc'));
+    toolbar.append(addFactionBtn, addCategoryBtn, addNpcBtn);
+    root.appendChild(toolbar);
+
+    // ── Faction tree ─────────────────────────────────────────────────────────
+    const tree = document.createElement('div');
+    tree.classList.add('rrt-faction-tree');
+
+    // Wire the tree container as a drop zone for root-level drops
+    tree.addEventListener('dragover', (e) => {
+      // Only handle if the event target is the tree itself (not a child row)
+      if (e.target !== tree) return;
+      if (!this._dragNodeId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      tree.classList.add('rrt-tree-drop-over');
+    });
+    tree.addEventListener('dragleave', (e) => {
+      if (e.target === tree) tree.classList.remove('rrt-tree-drop-over');
+    });
+    tree.addEventListener('drop', async (e) => {
+      if (e.target !== tree) return;
+      e.preventDefault();
+      tree.classList.remove('rrt-tree-drop-over');
+      const sourceId = e.dataTransfer.getData('text/plain');
+      if (!sourceId) return;
+      await this._doMove(sourceId, null);
+    });
+
+    if (context.rows.length === 0) {
+      const empty = document.createElement('p');
+      empty.classList.add('rrt-empty');
+      empty.textContent = game.i18n.localize('RRT.gmManager.empty');
+      tree.appendChild(empty);
+    } else {
+      for (const row of context.rows) {
+        tree.appendChild(this._buildRow(row));
+      }
+    }
+
+    root.appendChild(tree);
+    return root;
+  }
+
+  _replaceHTML(result, content, options) {
+    content.replaceChildren(result);
+  }
+
+  // Build a single faction/NPC/category row element
+  _buildRow(row) {
+    const el = document.createElement('div');
+    el.classList.add('rrt-faction-row', `rrt-type-${row.type}`);
+    el.style.setProperty('--rrt-depth', row.depth);
+    el.dataset.id = row.id;
+    el.dataset.type = row.type;
+    el.draggable = true;
+
+    // Drag handle
+    const handle = document.createElement('i');
+    handle.className = 'fas fa-grip-vertical rrt-drag-handle';
+    el.appendChild(handle);
+
+    // Visibility indicator
+    const vis = document.createElement('span');
+    vis.classList.add('rrt-vis-icon');
+    vis.title = row.isVisible
+      ? game.i18n.localize('RRT.gmManager.visibleToAll')
+      : game.i18n.localize('RRT.gmManager.gmOnly');
+    vis.innerHTML = row.isVisible ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+    el.appendChild(vis);
+
+    // Name + type badge
+    const info = document.createElement('div');
+    info.classList.add('rrt-row-info');
+
+    const name = document.createElement('span');
+    name.classList.add('rrt-row-name');
+    name.textContent = row.name;
+
+    const badge = document.createElement('span');
+    badge.classList.add('rrt-type-badge');
+    badge.textContent = game.i18n.localize(`RRT.type.${row.type}`);
+
+    info.append(name, badge);
+    el.appendChild(info);
+
+    // Actions
+    const actions = document.createElement('div');
+    actions.classList.add('rrt-row-actions');
+
+    if (row.type === 'category') {
+      // Category can contain factions and NPCs
+      actions.append(
+        this._makeButton('RRT.gmManager.addFactionSm', 'rrt-btn-add-sm', () => this._onAddNode(row, 'faction')),
+        this._makeButton('RRT.gmManager.addNpc', 'rrt-btn-add-sm', () => this._onAddNode(row, 'npc')),
+      );
+    } else if (row.type === 'faction') {
+      // Faction can contain NPCs only
+      actions.appendChild(this._makeButton('RRT.gmManager.addNpc', 'rrt-btn-add-sm', () => this._onAddNode(row, 'npc')));
+    }
+
+    const editBtn = this._makeButton('RRT.gmManager.edit', 'rrt-btn-edit', () => this._onEdit(row));
+    const delBtn = this._makeButton('RRT.gmManager.delete', 'rrt-btn-delete', () => this._onDelete(row));
+    actions.append(editBtn, delBtn);
+    el.appendChild(actions);
+
+    // ── Drag events ───────────────────────────────────────────────────────────
+    el.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', row.id);
+      e.dataTransfer.effectAllowed = 'move';
+      this._dragNodeId = row.id;
+      // Use setTimeout so the dragging class applies after the drag image is captured
+      setTimeout(() => el.classList.add('rrt-dragging'), 0);
+    });
+
+    el.addEventListener('dragover', (e) => {
+      if (!this._dragNodeId || this._dragNodeId === row.id) return;
+      const factions = DataManager.getFactions();
+      if (this._isValidDrop(this._dragNodeId, row.id, row.type, factions)) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        el.classList.add('rrt-drag-over');
+        el.classList.remove('rrt-drag-invalid');
+      } else {
+        el.classList.add('rrt-drag-invalid');
+        el.classList.remove('rrt-drag-over');
+      }
+    });
+
+    el.addEventListener('dragleave', () => {
+      el.classList.remove('rrt-drag-over', 'rrt-drag-invalid');
+    });
+
+    el.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      el.classList.remove('rrt-drag-over', 'rrt-drag-invalid');
+      const sourceId = e.dataTransfer.getData('text/plain');
+      if (!sourceId || sourceId === row.id) return;
+      const factions = DataManager.getFactions();
+      if (!this._isValidDrop(sourceId, row.id, row.type, factions)) return;
+      await this._doMove(sourceId, row.id);
+    });
+
+    el.addEventListener('dragend', () => {
+      this._dragNodeId = null;
+      // Clean up all drag state from every row in the tree
+      this.element?.querySelectorAll('.rrt-dragging, .rrt-drag-over, .rrt-drag-invalid')
+        .forEach(n => n.classList.remove('rrt-dragging', 'rrt-drag-over', 'rrt-drag-invalid'));
+      this.element?.querySelector('.rrt-faction-tree')?.classList.remove('rrt-tree-drop-over');
+    });
+
+    return el;
+  }
+
+  // Returns true if moving sourceId onto targetId (becoming its child) is a legal operation
+  _isValidDrop(sourceId, targetId, targetType, factions) {
+    if (sourceId === targetId) return false;
+    // Prevent dropping a node onto one of its own descendants (cycle)
+    if (DataManager.isAncestor(factions, sourceId, targetId)) return false;
+
+    const sourceNode = DataManager.findFactionById(factions, sourceId);
+    if (!sourceNode) return false;
+
+    const sourceType = sourceNode.type;
+
+    // Category → can only go to root (handled by tree container drop zone, not row drops)
+    if (sourceType === 'category') return false;
+    // Faction → can go into a Category only
+    if (sourceType === 'faction') return targetType === 'category';
+    // NPC → can go into a Category or a Faction
+    if (sourceType === 'npc') return targetType === 'category' || targetType === 'faction';
+
+    return false;
+  }
+
+  async _doMove(sourceId, targetParentId) {
+    const factions = DataManager.getFactions();
+    DataManager.moveNode(factions, sourceId, targetParentId);
+    await DataManager.setFactions(factions);
+    this.render();
+  }
+
+  _makeButton(i18nKey, cssClass, onClick) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.classList.add('rrt-btn', cssClass);
+    btn.textContent = game.i18n.localize(i18nKey);
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  // ── CRUD handlers ─────────────────────────────────────────────────────────
+
+  async _onAddNode(parent, type) {
+    const name = await DialogV2.prompt({
+      window: { title: game.i18n.localize(`RRT.gmManager.add${this._capitalize(type)}Title`) },
+      content: `<label>${game.i18n.localize('RRT.gmManager.nameLabel')}<input type="text" name="name" autofocus /></label>`,
+      ok: {
+        label: game.i18n.localize('RRT.gmManager.create'),
+        callback: (event, button, dialog) => button.form.elements.name.value.trim(),
+      },
+    });
+
+    if (!name) return;
+
+    const defaultVisibility = game.settings.get(ID, 'defaultNpcVisibility');
+    const newNode = {
+      id: foundry.utils.randomID(),
+      name,
+      img: '',
+      description: '',
+      type,
+      isVisible: defaultVisibility === 'all',
+      subfactions: {},
+    };
+
+    const factions = DataManager.getFactions();
+
+    if (parent) {
+      const parentNode = DataManager.findFactionById(factions, parent.id);
+      if (parentNode) {
+        if (!parentNode.subfactions) parentNode.subfactions = {};
+        parentNode.subfactions[newNode.id] = newNode;
+      }
+    } else {
+      factions[newNode.id] = newNode;
+    }
+
+    await DataManager.setFactions(factions);
+    this.render();
+  }
+
+  async _onEdit(row) {
+    const result = await DialogV2.prompt({
+      window: { title: game.i18n.localize('RRT.gmManager.editTitle') },
+      content: this._buildEditForm(row),
+      ok: {
+        label: game.i18n.localize('RRT.gmManager.save'),
+        callback: (event, button, dialog) => {
+          const f = button.form.elements;
+          return {
+            name: f.name.value.trim(),
+            description: f.description.value.trim(),
+            img: f.img.value.trim(),
+            isVisible: f.isVisible.checked,
+          };
+        },
+      },
+    });
+
+    if (!result || !result.name) return;
+
+    const factions = DataManager.getFactions();
+    const node = DataManager.findFactionById(factions, row.id);
+    if (!node) return;
+
+    Object.assign(node, result);
+    await DataManager.setFactions(factions);
+    this.render();
+  }
+
+  _buildEditForm(row) {
+    return `
+      <div class="rrt-edit-form">
+        <label>${game.i18n.localize('RRT.gmManager.nameLabel')}
+          <input type="text" name="name" value="${this._esc(row.name)}" autofocus />
+        </label>
+        <label>${game.i18n.localize('RRT.gmManager.imgLabel')}
+          <input type="text" name="img" value="${this._esc(row.img ?? '')}" placeholder="path/to/image.webp" />
+        </label>
+        <label>${game.i18n.localize('RRT.gmManager.descriptionLabel')}
+          <textarea name="description">${this._esc(row.description ?? '')}</textarea>
+        </label>
+        <label class="rrt-checkbox-label">
+          <input type="checkbox" name="isVisible" ${row.isVisible ? 'checked' : ''} />
+          ${game.i18n.localize('RRT.gmManager.visibleToAll')}
+        </label>
+      </div>
+    `;
+  }
+
+  async _onDelete(row) {
+    const confirmed = await DialogV2.confirm({
+      window: { title: game.i18n.localize('RRT.gmManager.deleteTitle') },
+      content: game.i18n.format('RRT.gmManager.deleteConfirm', { name: row.name }),
+    });
+    if (!confirmed) return;
+
+    const factions = DataManager.getFactions();
+    this._deleteFromTree(factions, row.id);
+    await DataManager.setFactions(factions);
+
+    // Cascade: remove orphaned relationships and declarations
+    await DataManager.cleanupOrphanedRelations();
+    await DataManager.removeDeclarationsForNpc(row.id);
+
+    this.render();
+  }
+
+  // Recursively remove a node by id from any level of the tree
+  _deleteFromTree(container, id) {
+    if (container[id]) {
+      delete container[id];
+      return true;
+    }
+    for (const node of Object.values(container)) {
+      if (node.subfactions && this._deleteFromTree(node.subfactions, id)) return true;
+    }
+    return false;
+  }
+
+  _capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  _esc(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+}

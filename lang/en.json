@@ -13,5 +13,32 @@
   "RRT.settings.defaultNpcVisibility.name": "Default NPC Visibility",
   "RRT.settings.defaultNpcVisibility.hint": "Who can see newly created NPCs and factions by default.",
   "RRT.settings.defaultNpcVisibility.gm": "GM Only",
-  "RRT.settings.defaultNpcVisibility.all": "All Players"
+  "RRT.settings.defaultNpcVisibility.all": "All Players",
+
+  "RRT.type.faction": "Faction",
+  "RRT.type.npc": "NPC",
+  "RRT.type.category": "Category",
+
+  "RRT.gmManager.title": "Reputation Manager",
+  "RRT.gmManager.empty": "No factions or NPCs yet. Use the buttons above to add some.",
+  "RRT.gmManager.addFaction": "Add Faction",
+  "RRT.gmManager.addCategory": "Add Category",
+  "RRT.gmManager.addFactionSm": "+ Faction",
+  "RRT.gmManager.addNpc": "+ NPC",
+  "RRT.gmManager.addNpcTop": "Add NPC",
+  "RRT.gmManager.edit": "Edit",
+  "RRT.gmManager.delete": "Delete",
+  "RRT.gmManager.save": "Save",
+  "RRT.gmManager.create": "Create",
+  "RRT.gmManager.addFactionTitle": "Add Faction",
+  "RRT.gmManager.addNpcTitle": "Add NPC",
+  "RRT.gmManager.addCategoryTitle": "Add Category",
+  "RRT.gmManager.editTitle": "Edit Entry",
+  "RRT.gmManager.deleteTitle": "Confirm Deletion",
+  "RRT.gmManager.deleteConfirm": "This will permanently delete <strong>{name}</strong> and remove all associated relationships and declarations.",
+  "RRT.gmManager.nameLabel": "Name",
+  "RRT.gmManager.imgLabel": "Image Path",
+  "RRT.gmManager.descriptionLabel": "Description",
+  "RRT.gmManager.visibleToAll": "Visible to all players",
+  "RRT.gmManager.gmOnly": "GM only"
 }

@@ -59,6 +59,59 @@ export async function setRelationship(actor, npcId, patch) {
   return actor.setFlag(ID, FLAG, all);
 }
 
+// ── Tree reorganization ───────────────────────────────────────────────────
+
+// Remove a node from wherever it lives in the tree and return it.
+function extractNode(container, nodeId) {
+  if (container[nodeId]) {
+    const node = container[nodeId];
+    delete container[nodeId];
+    return node;
+  }
+  for (const child of Object.values(container)) {
+    if (child.subfactions) {
+      const found = extractNode(child.subfactions, nodeId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// Move nodeId to be a child of targetParentId (or to root if targetParentId is null).
+// Mutates the factions object in place — caller must save afterwards.
+export function moveNode(factions, nodeId, targetParentId) {
+  const node = extractNode(factions, nodeId);
+  if (!node) return;
+
+  if (targetParentId === null) {
+    factions[nodeId] = node;
+  } else {
+    const target = findFactionById(factions, targetParentId);
+    if (!target) { factions[nodeId] = node; return; } // safety: restore to root
+    if (!target.subfactions) target.subfactions = {};
+    target.subfactions[nodeId] = node;
+  }
+}
+
+// Returns true if candidateId is an ancestor of nodeId in the tree.
+export function isAncestor(factions, candidateId, nodeId) {
+  function walk(container) {
+    if (container[candidateId]) {
+      return _hasDescendant(container[candidateId], nodeId);
+    }
+    for (const child of Object.values(container)) {
+      if (child.subfactions && walk(child.subfactions)) return true;
+    }
+    return false;
+  }
+  function _hasDescendant(node, id) {
+    if (!node.subfactions) return false;
+    if (node.subfactions[id]) return true;
+    return Object.values(node.subfactions).some(c => _hasDescendant(c, id));
+  }
+  return walk(factions);
+}
+
 // Remove relationship keys for NPCs that no longer exist in the faction tree
 export async function cleanupOrphanedRelations() {
   const factions = getFactions();

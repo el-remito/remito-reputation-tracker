@@ -1,2 +1,253 @@
-/* remito-reputation-tracker styles
-   Filled in progressively across milestones M2–M5. */
+/* ═══════════════════════════════════════════════════════════════════════════
+   remito-reputation-tracker
+   CSS convention: use --rrt-* custom properties backed by light-dark()
+   so all text is readable in both Foundry light and dark themes.
+   Never rely on Foundry's --color-text-primary or --color-bg-btn — those
+   resolve to white in dark mode and make text invisible.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --rrt-text:         light-dark(#222222, #efe6d8);
+  --rrt-text-muted:   light-dark(#55524a, rgba(239,230,216,0.5));
+  --rrt-text-input:   light-dark(#18162e, #f3c267);
+  --rrt-bg:           light-dark(#f5f2ed, #1a1a2e);
+  --rrt-bg-input:     light-dark(transparent, transparent);
+  --rrt-bg-toolbar:   light-dark(rgba(0,0,0,.04), rgba(255,255,255,.04));
+  --rrt-bg-row-hover: light-dark(rgba(0,0,0,.05), rgba(255,255,255,.05));
+  --rrt-border:       light-dark(#222222, #efe6d8);
+  --rrt-border-light: light-dark(rgba(0,0,0,.12), rgba(239,230,216,.15));
+  --rrt-bg-btn:       light-dark(#e3dfd9, #2a2a3e);
+  --rrt-bg-btn-hover: light-dark(#cdc9c2, #3a3a52);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   M2 — GM Manager
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Window root ────────────────────────────────────────────────────────── */
+
+.remito-gm-manager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: var(--font-primary, sans-serif);
+  color: var(--rrt-text);
+  background: var(--rrt-bg);
+}
+
+/* ── Toolbar ────────────────────────────────────────────────────────────── */
+
+.rrt-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--rrt-border-light);
+  background: var(--rrt-bg-toolbar);
+  flex-shrink: 0;
+}
+
+/* ── Faction tree ───────────────────────────────────────────────────────── */
+
+.rrt-faction-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.rrt-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--rrt-text-muted);
+  font-style: italic;
+}
+
+.rrt-faction-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  padding-left: calc(10px + var(--rrt-depth, 0) * 20px);
+  border-bottom: 1px solid var(--rrt-border-light);
+  min-height: 36px;
+  color: var(--rrt-text);
+}
+
+.rrt-faction-row:last-child {
+  border-bottom: none;
+}
+
+.rrt-faction-row:hover {
+  background: var(--rrt-bg-row-hover);
+}
+
+/* Type accent stripe */
+.rrt-faction-row.rrt-type-faction  { border-left: 3px solid #5e8fd4; }
+.rrt-faction-row.rrt-type-npc      { border-left: 3px solid #7dc28f; }
+.rrt-faction-row.rrt-type-category { border-left: 3px solid #b0a060; }
+
+/* Visibility icon */
+.rrt-vis-icon {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+  color: var(--rrt-text-muted);
+  font-size: 0.75rem;
+}
+
+/* Row info */
+.rrt-row-info {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rrt-row-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--rrt-text);
+}
+
+.rrt-type-badge {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--rrt-bg-btn);
+  color: var(--rrt-text-muted);
+  flex-shrink: 0;
+}
+
+/* Row actions */
+.rrt-row-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+
+.rrt-btn {
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  border: 1px solid var(--rrt-border);
+  border-radius: 3px;
+  cursor: pointer;
+  background: var(--rrt-bg-btn);
+  color: var(--rrt-text);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.rrt-btn:hover {
+  background: var(--rrt-bg-btn-hover);
+}
+
+/* Colored variants keep explicit hex — they already contrast on both themes */
+.rrt-btn-add,
+.rrt-btn-add-sm {
+  background: #2a5c35;
+  border-color: #3a7a49;
+  color: #c8f0d0;
+}
+
+.rrt-btn-add:hover,
+.rrt-btn-add-sm:hover {
+  background: #3a7a49;
+}
+
+.rrt-btn-delete {
+  background: #5c2a2a;
+  border-color: #7a3a3a;
+  color: #f0c8c8;
+}
+
+.rrt-btn-delete:hover {
+  background: #7a3a3a;
+}
+
+/* ── Drag and drop ───────────────────────────────────────────────────────── */
+
+.rrt-drag-handle {
+  flex-shrink: 0;
+  width: 14px;
+  color: var(--rrt-text-muted);
+  cursor: grab;
+  font-size: 0.75rem;
+}
+
+.rrt-faction-row[draggable] {
+  cursor: grab;
+}
+
+.rrt-faction-row.rrt-dragging {
+  opacity: 0.35;
+}
+
+.rrt-faction-row.rrt-drag-over {
+  background: light-dark(rgba(94,143,212,0.15), rgba(94,143,212,0.25));
+  outline: 2px dashed #5e8fd4;
+  outline-offset: -2px;
+}
+
+.rrt-faction-row.rrt-drag-invalid {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.rrt-faction-tree.rrt-tree-drop-over {
+  background: light-dark(rgba(94,143,212,0.08), rgba(94,143,212,0.12));
+  outline: 2px dashed #5e8fd4;
+  outline-offset: -4px;
+}
+
+/* ── Edit form (inside DialogV2) ─────────────────────────────────────────── */
+
+.rrt-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+  color: var(--rrt-text);
+}
+
+.rrt-edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.85rem;
+  color: var(--rrt-text);
+}
+
+.rrt-edit-form input[type="text"],
+.rrt-edit-form textarea {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--rrt-border);
+  border-radius: 3px;
+  background: var(--rrt-bg-input);
+  color: var(--rrt-text-input);
+  font-family: inherit;
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.rrt-edit-form input[type="text"]::placeholder,
+.rrt-edit-form textarea::placeholder {
+  color: var(--rrt-text-muted);
+}
+
+.rrt-edit-form textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.rrt-checkbox-label {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px !important;
+}
