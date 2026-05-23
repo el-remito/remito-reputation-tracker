@@ -1,0 +1,17 @@
+{
+  "RRT.settings.slotsPerSide.name": "Slots Per Side",
+  "RRT.settings.slotsPerSide.hint": "Number of reputation slots on each side of the track (positive and negative).",
+  "RRT.settings.pointsPerSlot.name": "Points Per Slot",
+  "RRT.settings.pointsPerSlot.hint": "Number of hidden points required to fill one slot.",
+  "RRT.settings.impactWeights.name": "Impact Weights",
+  "RRT.settings.positiveTierLabels.name": "Positive Tier Labels",
+  "RRT.settings.negativeTierLabels.name": "Negative Tier Labels",
+  "RRT.settings.factions.name": "Factions",
+  "RRT.settings.declarations.name": "Declarations",
+  "RRT.settings.declarationArchiveLimit.name": "Declaration Archive Limit",
+  "RRT.settings.declarationArchiveLimit.hint": "Maximum number of processed declarations stored per character before auto-archiving the oldest.",
+  "RRT.settings.defaultNpcVisibility.name": "Default NPC Visibility",
+  "RRT.settings.defaultNpcVisibility.hint": "Who can see newly created NPCs and factions by default.",
+  "RRT.settings.defaultNpcVisibility.gm": "GM Only",
+  "RRT.settings.defaultNpcVisibility.all": "All Players"
+}

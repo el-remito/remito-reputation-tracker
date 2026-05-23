@@ -1,0 +1,27 @@
+{
+  "id": "remito-reputation-tracker",
+  "title": "Remito's Reputation Tracker",
+  "description": "Track NPC and faction reputation for Daggerheart campaigns. Players submit narrative declarations; GMs review and apply them to hidden point tracks.",
+  "version": "1.0.0",
+  "authors": [
+    {
+      "name": "remito"
+    }
+  ],
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14"
+  },
+  "esmodules": ["scripts/main.js"],
+  "styles": ["styles/reputation.css"],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "url": "",
+  "manifest": "",
+  "download": ""
+}
