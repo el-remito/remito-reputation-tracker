@@ -21,6 +21,225 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   M3 — Player Reputation Panel
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.remito-reputation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 100%;
+  overflow-y: auto;
+  font-family: var(--font-primary, sans-serif);
+  color: var(--rrt-text);
+  background: var(--rrt-bg);
+  padding: 8px 0;
+}
+
+/* ── Sections ────────────────────────────────────────────────────────────── */
+
+.rrt-section {
+  padding: 0 10px 12px;
+}
+
+.rrt-section-header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rrt-text-muted);
+  margin: 10px 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--rrt-border-light);
+}
+
+/* ── NPC rows ────────────────────────────────────────────────────────────── */
+
+.rrt-npc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--rrt-border-light);
+  color: var(--rrt-text);
+}
+
+.rrt-npc-row:last-child { border-bottom: none; }
+
+.rrt-npc-row.rrt-state-unknown {
+  opacity: 0.5;
+}
+
+/* Avatar */
+.rrt-npc-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--rrt-bg-btn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--rrt-text-muted);
+  font-size: 1rem;
+}
+
+.rrt-npc-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Info block */
+.rrt-npc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.rrt-npc-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--rrt-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rrt-npc-subtitle {
+  font-size: 0.75rem;
+  color: var(--rrt-text-muted);
+  margin-top: 1px;
+}
+
+.rrt-npc-flavor {
+  font-size: 0.75rem;
+  color: var(--rrt-text-muted);
+  font-style: italic;
+  margin-top: 1px;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+/* ── Slot track ──────────────────────────────────────────────────────────── */
+
+.rrt-slot-track {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.rrt-slot {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--rrt-border);
+  background: var(--rrt-bg-btn);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.rrt-slot--filled {
+  background: light-dark(#5e8fd4, #7aaee8);
+  border-color: light-dark(#4a7abc, #5e8fd4);
+}
+
+.rrt-slot--overflow {
+  box-shadow: 0 0 0 2px light-dark(#f3c267, #f3c267);
+}
+
+/* ── Declare button ──────────────────────────────────────────────────────── */
+
+.rrt-btn-declare {
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+/* ── Declaration cards ───────────────────────────────────────────────────── */
+
+.rrt-declaration-card {
+  border-radius: 4px;
+  border: 1px solid var(--rrt-border-light);
+  padding: 6px 8px;
+  margin-bottom: 5px;
+  background: var(--rrt-bg-btn);
+}
+
+.rrt-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 3px;
+}
+
+.rrt-card-who {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--rrt-text);
+  flex: 1;
+}
+
+.rrt-card-desc,
+.rrt-card-flavor {
+  font-size: 0.75rem;
+  color: var(--rrt-text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.rrt-card-flavor { font-style: italic; }
+
+/* Status badges */
+.rrt-status-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.rrt-status--pending  .rrt-status-badge { background: #4a6a9a; color: #d0e4ff; }
+.rrt-status--accepted .rrt-status-badge { background: #2a5c35; color: #c8f0d0; }
+.rrt-status--edited   .rrt-status-badge { background: #7a5a1a; color: #fde8a0; }
+.rrt-status--rejected .rrt-status-badge { background: #444; color: #aaa; }
+
+.rrt-status--rejected { opacity: 0.75; }
+
+/* Impact chips */
+.rrt-impact-chip {
+  font-size: 0.65rem;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.rrt-direction-positive { background: #2a5c35; color: #c8f0d0; }
+.rrt-direction-negative { background: #5c2a2a; color: #f0c8c8; }
+
+/* ── Generic header inject button ────────────────────────────────────────── */
+
+.rrt-header-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--rrt-text-muted);
+  font-size: 0.9rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.rrt-header-btn:hover {
+  background: var(--rrt-bg-btn);
+  color: var(--rrt-text);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    M2 — GM Manager
    ═══════════════════════════════════════════════════════════════════════════ */
 

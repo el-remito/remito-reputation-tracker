@@ -23,9 +23,9 @@
   "RRT.gmManager.empty": "No factions or NPCs yet. Use the buttons above to add some.",
   "RRT.gmManager.addFaction": "Add Faction",
   "RRT.gmManager.addCategory": "Add Category",
+  "RRT.gmManager.addNpcTop": "Add NPC",
   "RRT.gmManager.addFactionSm": "+ Faction",
   "RRT.gmManager.addNpc": "+ NPC",
-  "RRT.gmManager.addNpcTop": "Add NPC",
   "RRT.gmManager.edit": "Edit",
   "RRT.gmManager.delete": "Delete",
   "RRT.gmManager.save": "Save",
@@ -40,5 +40,31 @@
   "RRT.gmManager.imgLabel": "Image Path",
   "RRT.gmManager.descriptionLabel": "Description",
   "RRT.gmManager.visibleToAll": "Visible to all players",
-  "RRT.gmManager.gmOnly": "GM only"
+  "RRT.gmManager.gmOnly": "GM only",
+
+  "RRT.panel.title": "Reputation",
+  "RRT.panel.gmBadge": "GM View",
+  "RRT.panel.openButton": "Reputation",
+  "RRT.panel.relationships": "Relationships",
+  "RRT.panel.noRelationships": "No known relationships yet.",
+  "RRT.panel.pendingDeclarations": "Pending Declarations",
+  "RRT.panel.noPending": "No pending declarations.",
+  "RRT.panel.processedDeclarations": "Past Declarations",
+  "RRT.panel.noProcessed": "No past declarations.",
+  "RRT.panel.declare": "Declare",
+  "RRT.panel.negativeFlavor": "The last time you crossed paths, you had the impression things were [{label}].",
+
+  "RRT.impact.minor": "Minor",
+  "RRT.impact.major": "Major",
+  "RRT.impact.severe": "Severe",
+  "RRT.impact.massive": "Massive",
+
+  "RRT.status.pending": "Pending",
+  "RRT.status.accepted": "Certain",
+  "RRT.status.edited": "Recalled",
+  "RRT.status.rejected": "Unclear",
+
+  "RRT.processedFlavor.accepted": "You are sure {npcName} will remember this.",
+  "RRT.processedFlavor.edited": "{npcName} might remember this, but you wonder if it was how you remember it.",
+  "RRT.processedFlavor.rejected": "This is a clear memory for you, but you cannot confirm it impacted {npcName} at all..."
 }
