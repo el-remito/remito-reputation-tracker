@@ -66,5 +66,33 @@
 
   "RRT.processedFlavor.accepted": "You are sure {npcName} will remember this.",
   "RRT.processedFlavor.edited": "{npcName} might remember this, but you wonder if it was how you remember it.",
-  "RRT.processedFlavor.rejected": "This is a clear memory for you, but you cannot confirm it impacted {npcName} at all..."
+  "RRT.processedFlavor.rejected": "This is a clear memory for you, but you cannot confirm it impacted {npcName} at all...",
+
+  "RRT.declare.title": "Declare a Change",
+  "RRT.declare.npcLabel": "NPC / Faction",
+  "RRT.declare.descriptionLabel": "What happened?",
+  "RRT.declare.descriptionPlaceholder": "Briefly describe the interaction…",
+  "RRT.declare.directionLabel": "Direction",
+  "RRT.declare.direction.positive": "Positive",
+  "RRT.declare.direction.negative": "Negative",
+  "RRT.declare.impactLabel": "Impact",
+  "RRT.declare.submit": "Submit Declaration",
+  "RRT.declare.errorNoNpc": "Please select an NPC or faction.",
+  "RRT.declare.errorNoDesc": "Please describe what happened.",
+
+  "RRT.gmManager.pendingDeclarations": "Pending Declarations",
+  "RRT.gmManager.noPending": "No pending declarations.",
+  "RRT.gmManager.accept": "Accept",
+  "RRT.gmManager.reject": "Reject",
+  "RRT.gmManager.editPoints": "Edit",
+  "RRT.gmManager.rejectTitle": "Reject Declaration",
+  "RRT.gmManager.rejectConfirm": "Reject this declaration? No reputation change will be applied.",
+  "RRT.gmManager.editPointsTitle": "Override Points",
+  "RRT.gmManager.editPointsPrompt": "Points to apply (use negative for a penalty):",
+
+  "RRT.gmManager.viewFactions": "Factions",
+  "RRT.gmManager.viewRelationships": "Relationships",
+  "RRT.gmManager.selectCharacter": "Select a character…",
+  "RRT.gmManager.isKnown": "Known",
+  "RRT.gmManager.saveRelationship": "Save"
 }

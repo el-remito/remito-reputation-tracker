@@ -1,5 +1,6 @@
 import * as DataManager from './data-manager.js';
 import { filledSlots, overflowBuffer, getPositiveTierLabel, getNegativeTierLabel } from './reputation-utils.js';
+import { DeclareChangeDialog } from './declare-dialog.js';
 
 const ID = 'remito-reputation-tracker';
 const { ApplicationV2 } = foundry.applications.api;
@@ -234,11 +235,9 @@ export class ActorReputationPanel extends ApplicationV2 {
     const nameEl = document.createElement('div');
     nameEl.classList.add('rrt-npc-name');
 
+    nameEl.textContent = row.name;
     if (row.state === 'unknown') {
-      nameEl.textContent = '???';
       nameEl.insertAdjacentHTML('beforeend', ' <i class="fas fa-lock" style="font-size:0.7em"></i>');
-    } else {
-      nameEl.textContent = row.name;
     }
     info.appendChild(nameEl);
 
@@ -263,16 +262,14 @@ export class ActorReputationPanel extends ApplicationV2 {
       el.appendChild(this._buildSlotTrack(row.slots, slotsPerSide, row.overflow > 0));
     }
 
-    // Declare button (stub — wired in M4)
-    if (row.state !== 'unknown') {
-      const declareBtn = document.createElement('button');
-      declareBtn.type = 'button';
-      declareBtn.classList.add('rrt-btn', 'rrt-btn-declare');
-      declareBtn.textContent = game.i18n.localize('RRT.panel.declare');
-      declareBtn.dataset.npcId = row.id;
-      // M4: declareBtn.addEventListener('click', () => new DeclareChangeDialog({actor: this.actor, npcId: row.id}).render(true));
-      el.appendChild(declareBtn);
-    }
+    // Declare button — visible for every rendered row (players never see unknown-state rows)
+    const declareBtn = document.createElement('button');
+    declareBtn.type = 'button';
+    declareBtn.classList.add('rrt-btn', 'rrt-btn-declare');
+    declareBtn.textContent = game.i18n.localize('RRT.panel.declare');
+    declareBtn.dataset.npcId = row.id;
+    declareBtn.addEventListener('click', () => new DeclareChangeDialog({ actor: this.actor, npcId: row.id }).render(true));
+    el.appendChild(declareBtn);
 
     return el;
   }
@@ -341,6 +338,13 @@ export class ActorReputationPanel extends ApplicationV2 {
 
     header.append(npcEl, badge);
     card.appendChild(header);
+
+    if (d.description) {
+      const desc = document.createElement('p');
+      desc.classList.add('rrt-card-desc');
+      desc.textContent = d.description.length > 120 ? d.description.slice(0, 120) + '…' : d.description;
+      card.appendChild(desc);
+    }
 
     const flavor = document.createElement('p');
     flavor.classList.add('rrt-card-flavor');

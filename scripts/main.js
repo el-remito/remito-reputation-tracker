@@ -2,8 +2,7 @@ import { registerSettings } from './settings.js';
 import * as DataManager from './data-manager.js';
 import { GmReputationManager } from './gm-manager.js';
 import { ActorReputationPanel, openPanels } from './reputation-panel.js';
-
-// M4: import { DeclareChangeDialog } from './declare-dialog.js';
+import { DeclareChangeDialog } from './declare-dialog.js';
 
 Hooks.once('init', () => {
   registerSettings();
@@ -57,7 +56,7 @@ Hooks.on('getSceneControlButtons', (controls) => {
       title: game.i18n.localize('RRT.gmManager.title'),
       icon: 'fas fa-flag',
       button: true,
-      onClick: () => new GmReputationManager().render(true),
+      onChange: () => new GmReputationManager().render(true),
     };
   }
 });
