@@ -1,6 +1,7 @@
 import * as DataManager from './data-manager.js';
 import { filledSlots, overflowBuffer, getPositiveTierLabel, getNegativeTierLabel } from './reputation-utils.js';
 import { DeclareChangeDialog } from './declare-dialog.js';
+import { NpcDetailPanel, openDetailPanels } from './npc-detail-panel.js';
 
 const ID = 'remito-reputation-tracker';
 const { ApplicationV2 } = foundry.applications.api;
@@ -13,6 +14,8 @@ export class ActorReputationPanel extends ApplicationV2 {
     super(options);
     this.actor = actor;
   }
+
+  _activeTab = 'factions'; // 'factions' | 'declarations'
 
   get id() {
     return `remito-reputation-panel-${this.actor.id}`;
@@ -39,26 +42,32 @@ export class ActorReputationPanel extends ApplicationV2 {
     const archiveLimit = game.settings.get(ID, 'declarationArchiveLimit');
     const isGM = game.user.isGM;
 
-    // Flatten faction tree into NPC/faction rows (skip categories — no track)
-    const npcRows = [];
-    function walkFactions(container) {
+    // Build hierarchical npcTree: { renderType: 'category'|'npc', depth, ...row_data }
+    const npcTree = [];
+
+    function walkFactions(container, depth = 0) {
       const sorted = Object.values(container).sort((a, b) => a.name.localeCompare(b.name));
       for (const node of sorted) {
         if (node.type === 'category') {
-          if (node.subfactions) walkFactions(node.subfactions);
+          if (!isGM && !node.isVisible) {
+            if (node.subfactions) walkFactions(node.subfactions, depth + 1);
+            continue;
+          }
+          npcTree.push({ renderType: 'category', id: node.id, name: node.name, depth });
+          if (node.subfactions) walkFactions(node.subfactions, depth + 1);
           continue;
         }
-        // Skip GM-only entries for non-GMs
+
+        // faction or npc — has reputation track
         if (!isGM && !node.isVisible) {
-          if (node.subfactions) walkFactions(node.subfactions);
+          if (node.subfactions) walkFactions(node.subfactions, depth + 1);
           continue;
         }
 
         const rel = relationships[node.id] ?? { hiddenPoints: 0, isKnown: false, playerLabelOverride: null };
 
         if (!isGM && !rel.isKnown) {
-          // Unknown to this player — skip entirely (not even ??? shown)
-          if (node.subfactions) walkFactions(node.subfactions);
+          if (node.subfactions) walkFactions(node.subfactions, depth + 1);
           continue;
         }
 
@@ -74,27 +83,29 @@ export class ActorReputationPanel extends ApplicationV2 {
         } else if (hp > 0) {
           state = 'positive';
           const tier = rel.playerLabelOverride
-            ? { label: rel.playerLabelOverride, flavorText: '' }
+            ? { label: rel.playerLabelOverride, flavorText: rel.playerFlavorOverride ?? '' }
             : (getPositiveTierLabel(hp, slotsPerSide, pointsPerSlot, positiveTierLabels) ?? { label: '', flavorText: '' });
           tierLabel = tier.label;
           flavorText = tier.flavorText;
         } else if (hp < 0) {
           state = 'negative';
           const tier = rel.playerLabelOverride
-            ? { label: rel.playerLabelOverride }
-            : (getNegativeTierLabel(hp, slotsPerSide, pointsPerSlot, negativeTierLabels) ?? { label: '' });
+            ? { label: rel.playerLabelOverride, flavorText: rel.playerFlavorOverride ?? '' }
+            : (getNegativeTierLabel(hp, slotsPerSide, pointsPerSlot, negativeTierLabels) ?? { label: '', flavorText: '' });
           tierLabel = tier.label;
-          flavorText = null;
+          flavorText = tier.flavorText ?? null; // M6.1: propagate negative flavor text
         } else {
           state = 'neutral';
           tierLabel = null;
           flavorText = null;
         }
 
-        npcRows.push({
+        npcTree.push({
+          renderType: 'npc',
           id: node.id,
           name: node.name,
           img: node.img || null,
+          depth,
           state,
           tierLabel,
           flavorText,
@@ -102,10 +113,10 @@ export class ActorReputationPanel extends ApplicationV2 {
           slotsPerSide,
           overflow,
           isKnown: rel.isKnown,
-          hiddenPoints: isGM ? hp : null, // only expose raw points to GM
+          hiddenPoints: isGM ? hp : null,
         });
 
-        if (node.subfactions) walkFactions(node.subfactions);
+        if (node.subfactions) walkFactions(node.subfactions, depth + 1);
       }
     }
     walkFactions(factions);
@@ -131,89 +142,131 @@ export class ActorReputationPanel extends ApplicationV2 {
         npcName: DataManager.findFactionById(factions, d.npcId)?.name ?? '???',
       }));
 
-    return { npcRows, pending, processed, slotsPerSide, isGM };
+    return { npcTree, pending, processed, slotsPerSide, isGM };
   }
 
   async _renderHTML(context, options) {
     const root = document.createElement('div');
     root.classList.add('remito-reputation-panel');
 
-    // ── NPC list ─────────────────────────────────────────────────────────────
-    const npcSection = document.createElement('div');
-    npcSection.classList.add('rrt-section');
+    // ── Tab bar ───────────────────────────────────────────────────────────────
+    const tabBar = document.createElement('div');
+    tabBar.classList.add('rrt-tab-bar');
 
-    const npcHeader = document.createElement('h3');
-    npcHeader.classList.add('rrt-section-header');
-    npcHeader.textContent = game.i18n.localize('RRT.panel.relationships');
-    npcSection.appendChild(npcHeader);
+    const factionsTabBtn = document.createElement('button');
+    factionsTabBtn.type = 'button';
+    factionsTabBtn.classList.add('rrt-tab-btn');
+    if (this._activeTab === 'factions') factionsTabBtn.classList.add('rrt-tab-btn--active');
+    factionsTabBtn.textContent = game.i18n.localize('RRT.panel.tabFactions');
+    factionsTabBtn.addEventListener('click', () => { this._activeTab = 'factions'; this.render(); });
 
-    if (context.npcRows.length === 0) {
-      const empty = document.createElement('p');
-      empty.classList.add('rrt-empty');
-      empty.textContent = game.i18n.localize('RRT.panel.noRelationships');
-      npcSection.appendChild(empty);
-    } else {
-      for (const row of context.npcRows) {
-        npcSection.appendChild(this._buildNpcRow(row, context.slotsPerSide));
+    const declTabBtn = document.createElement('button');
+    declTabBtn.type = 'button';
+    declTabBtn.classList.add('rrt-tab-btn');
+    if (this._activeTab === 'declarations') declTabBtn.classList.add('rrt-tab-btn--active');
+    declTabBtn.textContent = game.i18n.localize('RRT.panel.tabDeclarations');
+    declTabBtn.addEventListener('click', () => { this._activeTab = 'declarations'; this.render(); });
+
+    tabBar.append(factionsTabBtn, declTabBtn);
+    root.appendChild(tabBar);
+
+    // ── Factions tab ──────────────────────────────────────────────────────────
+    if (this._activeTab === 'factions') {
+      const npcSection = document.createElement('div');
+      npcSection.classList.add('rrt-section');
+
+      const npcHeader = document.createElement('h3');
+      npcHeader.classList.add('rrt-section-header');
+      npcHeader.textContent = game.i18n.localize('RRT.panel.relationships');
+      npcSection.appendChild(npcHeader);
+
+      if (context.npcTree.length === 0) {
+        const empty = document.createElement('p');
+        empty.classList.add('rrt-empty');
+        empty.textContent = game.i18n.localize('RRT.panel.noRelationships');
+        npcSection.appendChild(empty);
+      } else {
+        for (const entry of context.npcTree) {
+          if (entry.renderType === 'category') {
+            npcSection.appendChild(this._buildCategoryHeader(entry));
+          } else {
+            npcSection.appendChild(this._buildNpcRow(entry, context.slotsPerSide));
+          }
+        }
       }
+      root.appendChild(npcSection);
     }
-    root.appendChild(npcSection);
 
-    // ── Pending declarations ─────────────────────────────────────────────────
-    const pendingSection = document.createElement('div');
-    pendingSection.classList.add('rrt-section');
+    // ── Declarations tab ──────────────────────────────────────────────────────
+    if (this._activeTab === 'declarations') {
+      // Pending declarations
+      const pendingSection = document.createElement('div');
+      pendingSection.classList.add('rrt-section');
 
-    const pendingHeader = document.createElement('h3');
-    pendingHeader.classList.add('rrt-section-header');
-    pendingHeader.textContent = game.i18n.localize('RRT.panel.pendingDeclarations');
-    pendingSection.appendChild(pendingHeader);
+      const pendingHeader = document.createElement('h3');
+      pendingHeader.classList.add('rrt-section-header');
+      pendingHeader.textContent = game.i18n.localize('RRT.panel.pendingDeclarations');
+      pendingSection.appendChild(pendingHeader);
 
-    if (context.pending.length === 0) {
-      const empty = document.createElement('p');
-      empty.classList.add('rrt-empty');
-      empty.textContent = game.i18n.localize('RRT.panel.noPending');
-      pendingSection.appendChild(empty);
-    } else {
-      for (const d of context.pending) {
-        pendingSection.appendChild(this._buildPendingCard(d));
+      if (context.pending.length === 0) {
+        const empty = document.createElement('p');
+        empty.classList.add('rrt-empty');
+        empty.textContent = game.i18n.localize('RRT.panel.noPending');
+        pendingSection.appendChild(empty);
+      } else {
+        for (const d of context.pending) {
+          pendingSection.appendChild(this._buildPendingCard(d));
+        }
       }
-    }
-    root.appendChild(pendingSection);
+      root.appendChild(pendingSection);
 
-    // ── Processed declarations ───────────────────────────────────────────────
-    const processedSection = document.createElement('div');
-    processedSection.classList.add('rrt-section');
+      // Processed declarations
+      const processedSection = document.createElement('div');
+      processedSection.classList.add('rrt-section');
 
-    const processedHeader = document.createElement('h3');
-    processedHeader.classList.add('rrt-section-header');
-    processedHeader.textContent = game.i18n.localize('RRT.panel.processedDeclarations');
-    processedSection.appendChild(processedHeader);
+      const processedHeader = document.createElement('h3');
+      processedHeader.classList.add('rrt-section-header');
+      processedHeader.textContent = game.i18n.localize('RRT.panel.processedDeclarations');
+      processedSection.appendChild(processedHeader);
 
-    if (context.processed.length === 0) {
-      const empty = document.createElement('p');
-      empty.classList.add('rrt-empty');
-      empty.textContent = game.i18n.localize('RRT.panel.noProcessed');
-      processedSection.appendChild(empty);
-    } else {
-      for (const d of context.processed) {
-        processedSection.appendChild(this._buildProcessedCard(d));
+      if (context.processed.length === 0) {
+        const empty = document.createElement('p');
+        empty.classList.add('rrt-empty');
+        empty.textContent = game.i18n.localize('RRT.panel.noProcessed');
+        processedSection.appendChild(empty);
+      } else {
+        for (const d of context.processed) {
+          processedSection.appendChild(this._buildProcessedCard(d));
+        }
       }
+      root.appendChild(processedSection);
     }
-    root.appendChild(processedSection);
 
     return root;
   }
 
   _replaceHTML(result, content, options) {
+    const scrollTop = content.querySelector('.remito-reputation-panel')?.scrollTop ?? 0;
     content.replaceChildren(result);
+    const panel = content.querySelector('.remito-reputation-panel');
+    if (panel) panel.scrollTop = scrollTop;
   }
 
   // ── Row builders ──────────────────────────────────────────────────────────
+
+  _buildCategoryHeader(entry) {
+    const el = document.createElement('div');
+    el.classList.add('rrt-category-header');
+    el.style.setProperty('--rrt-depth', entry.depth);
+    el.textContent = entry.name;
+    return el;
+  }
 
   _buildNpcRow(row, slotsPerSide) {
     const el = document.createElement('div');
     el.classList.add('rrt-npc-row', `rrt-state-${row.state}`);
     el.dataset.npcId = row.id;
+    if (row.depth) el.style.setProperty('--rrt-depth', row.depth);
 
     // Avatar
     const avatar = document.createElement('div');
@@ -226,6 +279,22 @@ export class ActorReputationPanel extends ApplicationV2 {
     } else {
       avatar.innerHTML = '<i class="fas fa-user"></i>';
     }
+
+    // GM click → open NPC detail panel
+    if (game.user.isGM) {
+      const openDetail = () => {
+        const panelId = `remito-npc-detail-${this.actor.id}-${row.id}`;
+        let detail = openDetailPanels.get(panelId);
+        if (!detail || !detail.rendered) {
+          detail = new NpcDetailPanel(this.actor, row.id);
+          openDetailPanels.set(panelId, detail);
+        }
+        detail.render(true);
+      };
+      avatar.classList.add('rrt-clickable');
+      avatar.addEventListener('click', openDetail);
+    }
+
     el.appendChild(avatar);
 
     // Info block
@@ -246,13 +315,41 @@ export class ActorReputationPanel extends ApplicationV2 {
       sub.classList.add('rrt-npc-subtitle');
       sub.textContent = row.tierLabel;
       info.appendChild(sub);
+      if (row.flavorText) {
+        const flavor = document.createElement('div');
+        flavor.classList.add('rrt-npc-flavor');
+        flavor.textContent = row.flavorText;
+        info.appendChild(flavor);
+      }
     }
 
     if (row.state === 'negative' && row.tierLabel) {
+      const sub = document.createElement('div');
+      sub.classList.add('rrt-npc-subtitle');
+      sub.textContent = row.tierLabel;
+      info.appendChild(sub);
       const flavor = document.createElement('div');
       flavor.classList.add('rrt-npc-flavor');
-      flavor.textContent = game.i18n.format('RRT.panel.negativeFlavor', { label: row.tierLabel });
+      // M6.1: use custom flavor text if available, otherwise fall back to generic format
+      flavor.textContent = row.flavorText
+        ? row.flavorText
+        : game.i18n.format('RRT.panel.negativeFlavor', { label: row.tierLabel });
       info.appendChild(flavor);
+    }
+
+    // GM click on info block → open NPC detail panel (reuse same openDetail logic as avatar)
+    if (game.user.isGM) {
+      const openDetail = () => {
+        const panelId = `remito-npc-detail-${this.actor.id}-${row.id}`;
+        let detail = openDetailPanels.get(panelId);
+        if (!detail || !detail.rendered) {
+          detail = new NpcDetailPanel(this.actor, row.id);
+          openDetailPanels.set(panelId, detail);
+        }
+        detail.render(true);
+      };
+      info.classList.add('rrt-clickable');
+      info.addEventListener('click', openDetail);
     }
 
     el.appendChild(info);
@@ -284,7 +381,10 @@ export class ActorReputationPanel extends ApplicationV2 {
       const isLast = i === filled - 1;
       slot.classList.add('rrt-slot');
       if (isFilled) slot.classList.add('rrt-slot--filled');
-      if (isFilled && isLast && hasOverflow) slot.classList.add('rrt-slot--overflow');
+      if (isFilled && isLast && hasOverflow) {
+        slot.classList.add('rrt-slot--overflow');
+        slot.title = game.i18n.localize('RRT.panel.overflowTooltip');
+      }
       track.appendChild(slot);
     }
 

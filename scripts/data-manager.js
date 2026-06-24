@@ -1,7 +1,7 @@
 const ID = 'remito-reputation-tracker';
 const FLAG = 'relationships';
 
-const DEFAULT_RELATIONSHIP = { hiddenPoints: 0, isKnown: false, playerLabelOverride: null };
+const DEFAULT_RELATIONSHIP = { hiddenPoints: 0, isKnown: false, playerLabelOverride: null, playerFlavorOverride: null };
 
 function getSetting(key) {
   return foundry.utils.deepClone(game.settings.get(ID, key));

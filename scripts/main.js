@@ -3,6 +3,7 @@ import * as DataManager from './data-manager.js';
 import { GmReputationManager } from './gm-manager.js';
 import { ActorReputationPanel, openPanels } from './reputation-panel.js';
 import { DeclareChangeDialog } from './declare-dialog.js';
+import { openDetailPanels } from './npc-detail-panel.js';
 
 Hooks.once('init', () => {
   registerSettings();
@@ -30,12 +31,27 @@ Hooks.once('ready', () => {
   };
 
   console.log('remito-reputation-tracker | Ready. Debug utilities available at window.RRT');
+
+  // Cross-panel communication: GM Manager badge clicks → open player panel
+  Hooks.on('remito.openPanel', (actorId) => {
+    const actor = game.actors.get(actorId);
+    if (!actor) return;
+    let panel = openPanels.get(actorId);
+    if (!panel || !panel.rendered) {
+      panel = new ActorReputationPanel(actor);
+      openPanels.set(actorId, panel);
+    }
+    panel.render(true);
+  });
 });
 
 // Re-render all open panels when declarations or relationship flags change
 Hooks.on('updateSetting', (setting) => {
   if (!setting.key?.startsWith('remito-reputation-tracker')) return;
   for (const panel of openPanels.values()) {
+    if (panel.rendered) panel.render();
+  }
+  for (const panel of openDetailPanels.values()) {
     if (panel.rendered) panel.render();
   }
 });

@@ -1,3 +1,5 @@
+import { ReputationSettingsPanel } from './settings-panel.js';
+
 const ID = 'remito-reputation-tracker';
 
 const DEFAULT_POSITIVE_TIER_LABELS = [
@@ -9,14 +11,22 @@ const DEFAULT_POSITIVE_TIER_LABELS = [
 ];
 
 const DEFAULT_NEGATIVE_TIER_LABELS = [
-  { slotThreshold: 1, label: 'Wary' },
-  { slotThreshold: 2, label: 'Unfriendly' },
-  { slotThreshold: 3, label: 'Hostile' },
-  { slotThreshold: 4, label: 'Resented' },
-  { slotThreshold: 5, label: 'Nemesis' },
+  { slotThreshold: 1, label: 'Wary',       flavorText: 'something about them puts you on edge' },
+  { slotThreshold: 2, label: 'Unfriendly', flavorText: 'they make no effort to hide their dislike' },
+  { slotThreshold: 3, label: 'Hostile',    flavorText: 'every interaction feels like a threat' },
+  { slotThreshold: 4, label: 'Resented',   flavorText: 'you sense a deep and personal grudge' },
+  { slotThreshold: 5, label: 'Nemesis',    flavorText: 'there is nothing they would not do against you' },
 ];
 
 export function registerSettings() {
+  game.settings.registerMenu(ID, 'config', {
+    name: 'RRT.settings.configure.name',
+    label: 'RRT.settings.configure.label',
+    icon: 'fas fa-cog',
+    type: ReputationSettingsPanel,
+    restricted: true,
+  });
+
   game.settings.register(ID, 'slotsPerSide', {
     name: 'RRT.settings.slotsPerSide.name',
     hint: 'RRT.settings.slotsPerSide.hint',

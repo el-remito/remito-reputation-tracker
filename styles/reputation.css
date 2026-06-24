@@ -770,3 +770,524 @@
   padding: 2px 8px;
   font-size: 0.75rem;
 }
+
+.rrt-rel-overrides {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.rrt-rel-override,
+.rrt-rel-flavor-override {
+  width: 100%;
+  padding: 3px 5px;
+  border: 1px solid var(--rrt-border);
+  border-radius: 3px;
+  background: var(--rrt-bg-input);
+  color: var(--rrt-text-input);
+  font-size: 0.8rem;
+  box-sizing: border-box;
+}
+
+.rrt-rel-flavor-override {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.rrt-rel-override::placeholder,
+.rrt-rel-flavor-override::placeholder {
+  color: var(--rrt-text-muted);
+  font-style: italic;
+}
+
+.rrt-rel-clear {
+  padding: 2px 6px;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   M5 — Toolbar search
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.rrt-toolbar-search {
+  flex: 1;
+  min-width: 80px;
+  max-width: 160px;
+  padding: 3px 7px;
+  border: 1px solid var(--rrt-border);
+  border-radius: 3px;
+  background: var(--rrt-bg-input);
+  color: var(--rrt-text-input);
+  font-size: 0.8rem;
+}
+
+.rrt-toolbar-search::placeholder {
+  color: var(--rrt-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   M5 — Processed section collapse toggle
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.rrt-section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--rrt-border-light);
+}
+
+.rrt-collapse-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--rrt-text-muted);
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.rrt-collapse-btn:hover {
+  background: var(--rrt-bg-btn);
+  color: var(--rrt-text);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   M5 — Settings Panel
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.rrt-settings-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  font-family: var(--font-primary, sans-serif);
+  color: var(--rrt-text);
+  background: var(--rrt-bg);
+  padding: 4px 0 0;
+}
+
+.rrt-settings-section {
+  padding: 0 12px 10px;
+  border-bottom: 1px solid var(--rrt-border-light);
+}
+
+.rrt-settings-section:last-of-type {
+  border-bottom: none;
+}
+
+.rrt-settings-section .rrt-section-header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rrt-text-muted);
+  margin: 10px 0 8px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--rrt-border-light);
+}
+
+.rrt-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0;
+}
+
+.rrt-settings-label {
+  font-size: 0.85rem;
+  color: var(--rrt-text);
+  flex: 1;
+}
+
+.rrt-settings-num {
+  width: 70px;
+  padding: 3px 6px;
+  border: 1px solid var(--rrt-border);
+  border-radius: 3px;
+  background: var(--rrt-bg-input);
+  color: var(--rrt-text-input);
+  font-size: 0.85rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Tier tables */
+.rrt-tier-table {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rrt-tier-header {
+  display: grid;
+  grid-template-columns: 36px 1fr 1fr 28px;
+  gap: 5px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--rrt-text-muted);
+  padding: 0 2px 3px;
+  border-bottom: 1px solid var(--rrt-border-light);
+}
+
+/* Negative tier table (no flavor column) */
+.rrt-tier-table[data-has-flavor="0"] .rrt-tier-header {
+  grid-template-columns: 36px 1fr 28px;
+}
+
+.rrt-tier-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 1fr 28px;
+  gap: 5px;
+  align-items: center;
+}
+
+.rrt-tier-table[data-has-flavor="0"] .rrt-tier-row {
+  grid-template-columns: 36px 1fr 28px;
+}
+
+.rrt-tier-slot {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--rrt-text-muted);
+  font-weight: 600;
+}
+
+.rrt-tier-label-input,
+.rrt-tier-flavor-input {
+  width: 100%;
+  padding: 3px 5px;
+  border: 1px solid var(--rrt-border);
+  border-radius: 3px;
+  background: var(--rrt-bg-input);
+  color: var(--rrt-text-input);
+  font-size: 0.8rem;
+  box-sizing: border-box;
+}
+
+.rrt-tier-remove {
+  padding: 1px 5px;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+/* Settings footer */
+.rrt-settings-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--rrt-bg);
+  border-top: 1px solid var(--rrt-border-light);
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   M6 — Relationship Badges (GM Manager faction tree)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Allow badge row to wrap below the main row content */
+.rrt-faction-row {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* Re-centre non-badge children vertically */
+.rrt-faction-row > *:not(.rrt-rel-badges) {
+  align-self: center;
+}
+
+.rrt-rel-badges {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px 0 2px calc(10px + var(--rrt-depth, 0) * 20px + 14px + 18px + 12px);
+}
+
+.rrt-rel-badge {
+  font-size: 0.65rem;
+  padding: 1px 7px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  font-weight: 600;
+}
+
+.rrt-rel-badge:hover {
+  filter: brightness(1.2);
+}
+
+/* Rels button */
+.rrt-btn-rels {
+  background: #3a2a5c;
+  border-color: #5a3a7a;
+  color: #d8c8f0;
+}
+
+.rrt-btn-rels:hover {
+  background: #5a3a7a;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   M6 — Per-NPC Relationship Dialog
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.rrt-rel-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.rrt-rel-dialog-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px;
+  color: var(--rrt-text);
+}
+
+.rrt-rel-dialog-row + .rrt-rel-dialog-row {
+  border-top: 1px solid var(--rrt-border-light);
+}
+
+.rrt-rel-dialog-name {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--rrt-text);
+  min-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   M6 — Tabbed Player Panel
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.rrt-tab-bar {
+  display: flex;
+  border-bottom: 2px solid var(--rrt-border-light);
+  flex-shrink: 0;
+}
+
+.rrt-tab-btn {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  color: var(--rrt-text-muted);
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.rrt-tab-btn:hover {
+  color: var(--rrt-text);
+}
+
+.rrt-tab-btn--active {
+  color: var(--rrt-text);
+  border-bottom-color: light-dark(#5e8fd4, #7aaee8);
+}
+
+/* Category headers in the Factions tab */
+.rrt-category-header {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rrt-text-muted);
+  padding: 8px calc(4px + var(--rrt-depth, 0) * 16px) 3px;
+  border-bottom: 1px solid var(--rrt-border-light);
+  margin-top: 6px;
+}
+
+/* NPC row depth indentation (overrides the shorthand left padding) */
+.rrt-npc-row {
+  padding-left: calc(4px + var(--rrt-depth, 0) * 16px);
+}
+
+/* ── Themed DialogV2 windows ─────────────────────────────────────────────── */
+
+.rrt-themed-dialog .window-content {
+  background: var(--rrt-bg);
+  color: var(--rrt-text);
+}
+
+.rrt-themed-dialog input,
+.rrt-themed-dialog select,
+.rrt-themed-dialog textarea {
+  color: var(--rrt-text-input);
+  background: var(--rrt-bg-input);
+  border-color: var(--rrt-border);
+}
+
+.rrt-themed-dialog label {
+  color: var(--rrt-text);
+}
+
+.rrt-themed-dialog .form-footer button {
+  color: var(--rrt-text);
+  background: var(--rrt-bg-btn);
+  border: 1px solid var(--rrt-border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.rrt-themed-dialog .form-footer button:hover {
+  background: var(--rrt-bg-btn-hover);
+}
+
+.rrt-themed-dialog .form-footer button.default {
+  background: #2a5c35;
+  color: #c8f0d0;
+  border-color: #3a7a49;
+}
+
+.rrt-themed-dialog .form-footer button.default:hover {
+  background: #3a7a49;
+}
+
+/* ── Clickable NPC row elements in GM view ───────────────────────────────── */
+
+.rrt-clickable {
+  cursor: pointer;
+  border-radius: 3px;
+  transition: opacity 0.1s;
+}
+
+.rrt-clickable:hover {
+  opacity: 0.8;
+}
+
+/* ── NPC Detail Panel ────────────────────────────────────────────────────── */
+
+.rrt-npc-detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  overflow-y: auto;
+  height: 100%;
+  background: var(--rrt-bg);
+  color: var(--rrt-text);
+  box-sizing: border-box;
+}
+
+.rrt-detail-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 6px;
+  background: light-dark(rgba(0,0,0,0.04), rgba(255,255,255,0.05));
+  border: 1px solid var(--rrt-border-light);
+}
+
+.rrt-detail-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--rrt-bg-btn);
+  font-size: 1.4rem;
+  color: var(--rrt-text-muted);
+}
+
+.rrt-detail-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rrt-detail-header-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rrt-detail-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--rrt-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rrt-detail-type-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: #8a6a10;
+  color: #fde8a0;
+  border: 1px solid #b88a20;
+}
+
+.rrt-detail-tier-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--rrt-text);
+}
+
+.rrt-detail-flavor {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--rrt-text-muted);
+}
+
+.rrt-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rrt-detail-decl-card {
+  border-radius: 4px;
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* reuses rrt-status-- color tinting from declaration cards */
+.rrt-detail-decl-card.rrt-status--accepted { border-left: 3px solid #4a9e6a; }
+.rrt-detail-decl-card.rrt-status--edited    { border-left: 3px solid #b87c2a; }
+.rrt-detail-decl-card.rrt-status--rejected  { border-left: 3px solid #7a4a4a; opacity: 0.75; }
+.rrt-detail-decl-card.rrt-status--pending   { border-left: 3px solid #6a6a9a; opacity: 0.65; font-style: italic; }
+
+.rrt-detail-declare-btn {
+  width: 100%;
+  padding: 7px;
+  font-size: 0.85rem;
+  margin-top: auto;
+}

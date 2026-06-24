@@ -21,7 +21,8 @@
       "path": "lang/en.json"
     }
   ],
-  "url": "",
-  "manifest": "",
-  "download": ""
+  "flags": {},
+  "url": "https://github.com/el-remito/remito-reputation-tracker",
+  "manifest": "https://raw.githubusercontent.com/el-remito/remito-reputation-tracker/main/module.json",
+  "download": "https://github.com/el-remito/remito-reputation-tracker/archive/refs/heads/main.zip"
 }

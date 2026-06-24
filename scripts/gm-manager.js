@@ -1,5 +1,5 @@
 import * as DataManager from './data-manager.js';
-import { calculatePoints } from './reputation-utils.js';
+import { calculatePoints, getPositiveTierLabel, getNegativeTierLabel } from './reputation-utils.js';
 
 const ID = 'remito-reputation-tracker';
 const { ApplicationV2 } = foundry.applications.api;
@@ -9,21 +9,20 @@ export class GmReputationManager extends ApplicationV2 {
   static DEFAULT_OPTIONS = {
     id: 'remito-gm-manager',
     window: { title: 'RRT.gmManager.title', resizable: true },
-    position: { width: 640, height: 600 },
+    position: { width: 680, height: 620 },
   };
 
   _dragNodeId = null;
-  _viewMode = 'factions'; // 'factions' | 'relationships'
-  _selectedActorId = null;
+  _searchQuery = '';
 
-  // Flatten the nested faction tree into a renderable list with depth metadata
-  static _flattenTree(factions, depth = 0) {
+  // Flatten the nested faction tree into a renderable list with depth + parentId metadata
+  static _flattenTree(factions, depth = 0, parentId = null) {
     const rows = [];
     const sorted = Object.values(factions).sort((a, b) => a.name.localeCompare(b.name));
     for (const node of sorted) {
-      rows.push({ ...node, depth, hasChildren: Object.keys(node.subfactions ?? {}).length > 0 });
+      rows.push({ ...node, depth, parentId, hasChildren: Object.keys(node.subfactions ?? {}).length > 0 });
       if (node.subfactions) {
-        rows.push(...GmReputationManager._flattenTree(node.subfactions, depth + 1));
+        rows.push(...GmReputationManager._flattenTree(node.subfactions, depth + 1, node.id));
       }
     }
     return rows;
@@ -40,7 +39,27 @@ export class GmReputationManager extends ApplicationV2 {
         actorName: game.actors.get(d.actorId)?.name ?? '???',
         npcName: DataManager.findFactionById(factions, d.npcId)?.name ?? '???',
       }));
-    return { rows: GmReputationManager._flattenTree(factions), factions, pending };
+
+    // Compute relationship badges: { [nodeId]: [{ actorId, actorName, points, tierLabel }] }
+    const slotsPerSide = game.settings.get(ID, 'slotsPerSide');
+    const pointsPerSlot = game.settings.get(ID, 'pointsPerSlot');
+    const positiveTierLabels = game.settings.get(ID, 'positiveTierLabels');
+    const negativeTierLabels = game.settings.get(ID, 'negativeTierLabels');
+    const relBadges = {};
+    for (const actor of game.actors.filter(a => a.type === 'character')) {
+      const rels = DataManager.getAllRelationships(actor);
+      for (const [npcId, rel] of Object.entries(rels)) {
+        if (!rel.hiddenPoints) continue;
+        if (!relBadges[npcId]) relBadges[npcId] = [];
+        const points = rel.hiddenPoints;
+        const tierLabel = points > 0
+          ? (getPositiveTierLabel(points, slotsPerSide, pointsPerSlot, positiveTierLabels)?.label ?? `+${points}`)
+          : (getNegativeTierLabel(points, slotsPerSide, pointsPerSlot, negativeTierLabels)?.label ?? String(points));
+        relBadges[npcId].push({ actorId: actor.id, actorName: actor.name, points, tierLabel });
+      }
+    }
+
+    return { rows: GmReputationManager._flattenTree(factions), factions, pending, relBadges };
   }
 
   async _renderHTML(context, options) {
@@ -51,29 +70,19 @@ export class GmReputationManager extends ApplicationV2 {
     const toolbar = document.createElement('div');
     toolbar.classList.add('rrt-toolbar');
 
-    if (this._viewMode === 'factions') {
-      const addFactionBtn = this._makeButton('RRT.gmManager.addFaction', 'rrt-btn-add', () => this._onAddNode(null, 'faction'));
-      const addCategoryBtn = this._makeButton('RRT.gmManager.addCategory', 'rrt-btn-add', () => this._onAddNode(null, 'category'));
-      const addNpcBtn = this._makeButton('RRT.gmManager.addNpcTop', 'rrt-btn-add', () => this._onAddNode(null, 'npc'));
-      toolbar.append(addFactionBtn, addCategoryBtn, addNpcBtn);
-    }
+    const addFactionBtn = this._makeButton('RRT.gmManager.addFaction', 'rrt-btn-add', () => this._onAddNode(null, 'faction'));
+    const addCategoryBtn = this._makeButton('RRT.gmManager.addCategory', 'rrt-btn-add', () => this._onAddNode(null, 'category'));
+    const addNpcBtn = this._makeButton('RRT.gmManager.addNpcTop', 'rrt-btn-add', () => this._onAddNode(null, 'npc'));
 
-    // Spacer
-    const spacer = document.createElement('span');
-    spacer.style.flex = '1';
-    toolbar.appendChild(spacer);
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.classList.add('rrt-toolbar-search');
+    searchInput.placeholder = game.i18n.localize('RRT.gmManager.searchPlaceholder');
+    searchInput.value = this._searchQuery;
+    toolbar._searchInput = searchInput;
 
-    // View toggle
-    const factionsToggle = this._makeButton('RRT.gmManager.viewFactions', this._viewMode === 'factions' ? 'rrt-btn-view-active' : '', () => { this._viewMode = 'factions'; this.render(); });
-    const relToggle = this._makeButton('RRT.gmManager.viewRelationships', this._viewMode === 'relationships' ? 'rrt-btn-view-active' : '', () => { this._viewMode = 'relationships'; this.render(); });
-    toolbar.append(factionsToggle, relToggle);
+    toolbar.append(addFactionBtn, addCategoryBtn, addNpcBtn, searchInput);
     root.appendChild(toolbar);
-
-    // ── Relationship editor mode ──────────────────────────────────────────────
-    if (this._viewMode === 'relationships') {
-      root.appendChild(this._buildRelationshipEditor(context));
-      return root;
-    }
 
     // ── Faction tree ─────────────────────────────────────────────────────────
     const tree = document.createElement('div');
@@ -81,7 +90,6 @@ export class GmReputationManager extends ApplicationV2 {
 
     // Wire the tree container as a drop zone for root-level drops
     tree.addEventListener('dragover', (e) => {
-      // Only handle if the event target is the tree itself (not a child row)
       if (e.target !== tree) return;
       if (!this._dragNodeId) return;
       e.preventDefault();
@@ -107,9 +115,16 @@ export class GmReputationManager extends ApplicationV2 {
       tree.appendChild(empty);
     } else {
       for (const row of context.rows) {
-        tree.appendChild(this._buildRow(row));
+        tree.appendChild(this._buildRow(row, context.relBadges));
       }
     }
+
+    // Wire search input
+    this._applySearchFilter(tree, this._searchQuery);
+    toolbar._searchInput.addEventListener('input', (e) => {
+      this._searchQuery = e.target.value;
+      this._applySearchFilter(tree, this._searchQuery);
+    });
 
     root.appendChild(tree);
 
@@ -123,13 +138,49 @@ export class GmReputationManager extends ApplicationV2 {
     content.replaceChildren(result);
   }
 
+  // ── Search ────────────────────────────────────────────────────────────────
+
+  _applySearchFilter(tree, query) {
+    const q = (query ?? '').toLowerCase().trim();
+    const rowEls = tree.querySelectorAll('.rrt-faction-row');
+
+    if (!q) {
+      for (const row of rowEls) row.style.display = '';
+      return;
+    }
+
+    // First pass: find rows whose name matches
+    const visible = new Set();
+    for (const row of rowEls) {
+      const name = row.querySelector('.rrt-row-name')?.textContent?.toLowerCase() ?? '';
+      if (name.includes(q)) visible.add(row.dataset.id);
+    }
+
+    // Second pass: ensure all ancestors of matching rows stay visible
+    for (const row of rowEls) {
+      if (!visible.has(row.dataset.id)) continue;
+      let parentId = row.dataset.parentId;
+      while (parentId) {
+        visible.add(parentId);
+        const parentEl = tree.querySelector(`.rrt-faction-row[data-id="${parentId}"]`);
+        parentId = parentEl?.dataset.parentId;
+      }
+    }
+
+    // Apply visibility
+    for (const row of rowEls) {
+      row.style.display = visible.has(row.dataset.id) ? '' : 'none';
+    }
+  }
+
   // Build a single faction/NPC/category row element
-  _buildRow(row) {
+  _buildRow(row, relBadges = {}) {
     const el = document.createElement('div');
     el.classList.add('rrt-faction-row', `rrt-type-${row.type}`);
     el.style.setProperty('--rrt-depth', row.depth);
     el.dataset.id = row.id;
     el.dataset.type = row.type;
+    if (row.parentId) el.dataset.parentId = row.parentId;
     el.draggable = true;
 
     // Drag handle
@@ -166,14 +217,17 @@ export class GmReputationManager extends ApplicationV2 {
     actions.classList.add('rrt-row-actions');
 
     if (row.type === 'category') {
-      // Category can contain factions and NPCs
       actions.append(
         this._makeButton('RRT.gmManager.addFactionSm', 'rrt-btn-add-sm', () => this._onAddNode(row, 'faction')),
         this._makeButton('RRT.gmManager.addNpc', 'rrt-btn-add-sm', () => this._onAddNode(row, 'npc')),
       );
     } else if (row.type === 'faction') {
-      // Faction can contain NPCs only
       actions.appendChild(this._makeButton('RRT.gmManager.addNpc', 'rrt-btn-add-sm', () => this._onAddNode(row, 'npc')));
+    }
+
+    // Rels button for non-category rows (NPC/faction have reputation tracks)
+    if (row.type !== 'category') {
+      actions.appendChild(this._makeButton('RRT.gmManager.editRels', 'rrt-btn-rels', () => this._onEditRelationships(row)));
     }
 
     const editBtn = this._makeButton('RRT.gmManager.edit', 'rrt-btn-edit', () => this._onEdit(row));
@@ -186,7 +240,6 @@ export class GmReputationManager extends ApplicationV2 {
       e.dataTransfer.setData('text/plain', row.id);
       e.dataTransfer.effectAllowed = 'move';
       this._dragNodeId = row.id;
-      // Use setTimeout so the dragging class applies after the drag image is captured
       setTimeout(() => el.classList.add('rrt-dragging'), 0);
     });
 
@@ -220,11 +273,28 @@ export class GmReputationManager extends ApplicationV2 {
 
     el.addEventListener('dragend', () => {
       this._dragNodeId = null;
-      // Clean up all drag state from every row in the tree
       this.element?.querySelectorAll('.rrt-dragging, .rrt-drag-over, .rrt-drag-invalid')
         .forEach(n => n.classList.remove('rrt-dragging', 'rrt-drag-over', 'rrt-drag-invalid'));
       this.element?.querySelector('.rrt-faction-tree')?.classList.remove('rrt-tree-drop-over');
     });
+
+    // ── Relationship badges ───────────────────────────────────────────────────
+    if (row.type !== 'category') {
+      const badges = (relBadges[row.id] ?? []).sort((a, z) => a.actorName.localeCompare(z.actorName));
+      if (badges.length > 0) {
+        const badgeRow = document.createElement('div');
+        badgeRow.classList.add('rrt-rel-badges');
+        for (const b of badges) {
+          const badgeEl = document.createElement('span');
+          badgeEl.classList.add('rrt-rel-badge', b.points > 0 ? 'rrt-direction-positive' : 'rrt-direction-negative');
+          badgeEl.textContent = `${b.actorName}: ${b.tierLabel}`;
+          badgeEl.title = b.actorName;
+          badgeEl.addEventListener('click', () => Hooks.callAll('remito.openPanel', b.actorId));
+          badgeRow.appendChild(badgeEl);
+        }
+        el.appendChild(badgeRow);
+      }
+    }
 
     return el;
   }
@@ -232,7 +302,6 @@ export class GmReputationManager extends ApplicationV2 {
   // Returns true if moving sourceId onto targetId (becoming its child) is a legal operation
   _isValidDrop(sourceId, targetId, targetType, factions) {
     if (sourceId === targetId) return false;
-    // Prevent dropping a node onto one of its own descendants (cycle)
     if (DataManager.isAncestor(factions, sourceId, targetId)) return false;
 
     const sourceNode = DataManager.findFactionById(factions, sourceId);
@@ -240,11 +309,8 @@ export class GmReputationManager extends ApplicationV2 {
 
     const sourceType = sourceNode.type;
 
-    // Category → can only go to root (handled by tree container drop zone, not row drops)
     if (sourceType === 'category') return false;
-    // Faction → can go into a Category only
     if (sourceType === 'faction') return targetType === 'category';
-    // NPC → can go into a Category or a Faction
     if (sourceType === 'npc') return targetType === 'category' || targetType === 'faction';
 
     return false;
@@ -257,113 +323,69 @@ export class GmReputationManager extends ApplicationV2 {
     this.render();
   }
 
-  // ── Relationship editor ───────────────────────────────────────────────────
+  // ── Per-NPC Relationship Editor ───────────────────────────────────────────
 
-  _buildRelationshipEditor(context) {
-    const wrap = document.createElement('div');
-    wrap.classList.add('rrt-rel-editor');
+  async _onEditRelationships(row) {
+    const characters = game.actors
+      .filter(a => a.type === 'character')
+      .sort((a, b) => a.name.localeCompare(b.name));
 
-    // Character picker
-    const pickerRow = document.createElement('div');
-    pickerRow.classList.add('rrt-rel-picker');
-
-    const pickerLbl = document.createElement('label');
-    pickerLbl.textContent = game.i18n.localize('RRT.gmManager.selectCharacter');
-    pickerLbl.classList.add('rrt-rel-picker-label');
-
-    const select = document.createElement('select');
-    select.classList.add('rrt-rel-select');
-    const blankOpt = document.createElement('option');
-    blankOpt.value = '';
-    blankOpt.textContent = '—';
-    select.appendChild(blankOpt);
-    for (const actor of game.actors.filter(a => a.type === 'character').sort((a, b) => a.name.localeCompare(b.name))) {
-      const opt = document.createElement('option');
-      opt.value = actor.id;
-      opt.textContent = actor.name;
-      if (actor.id === this._selectedActorId) opt.selected = true;
-      select.appendChild(opt);
+    if (characters.length === 0) {
+      ui.notifications.warn('No character actors found.');
+      return;
     }
-    select.addEventListener('change', () => {
-      this._selectedActorId = select.value || null;
-      this.render();
+
+    let html = '<div class="rrt-rel-dialog">';
+    for (const actor of characters) {
+      const rel = DataManager.getRelationship(actor, row.id);
+      html += `
+        <div class="rrt-rel-dialog-row" data-actor-id="${actor.id}">
+          <span class="rrt-rel-dialog-name">${this._esc(actor.name)}</span>
+          <input type="number" name="hp" class="rrt-rel-hp" value="${rel.hiddenPoints ?? 0}" />
+          <label class="rrt-rel-known-label">
+            <input type="checkbox" name="isKnown" ${rel.isKnown ? 'checked' : ''} />
+            ${game.i18n.localize('RRT.gmManager.isKnown')}
+          </label>
+          <div class="rrt-rel-overrides">
+            <input type="text" name="override" class="rrt-rel-override" value="${this._esc(rel.playerLabelOverride ?? '')}" placeholder="${game.i18n.localize('RRT.gmManager.playerLabelOverride')}" />
+            <input type="text" name="flavorOverride" class="rrt-rel-flavor-override" value="${this._esc(rel.playerFlavorOverride ?? '')}" placeholder="${game.i18n.localize('RRT.gmManager.playerFlavorOverride')}" />
+          </div>
+        </div>
+      `;
+    }
+    html += '</div>';
+
+    const saved = await DialogV2.prompt({
+      classes: ['rrt-themed-dialog'],
+      window: { title: game.i18n.format('RRT.gmManager.editRelsTitle', { name: row.name }) },
+      content: html,
+      ok: {
+        label: game.i18n.localize('RRT.gmManager.saveAll'),
+        callback: async (event, button) => {
+          for (const rowEl of button.form.querySelectorAll('[data-actor-id]')) {
+            const actorId = rowEl.dataset.actorId;
+            const actor = game.actors.get(actorId);
+            if (!actor) continue;
+            const hp = parseInt(rowEl.querySelector('[name="hp"]').value, 10);
+            const isKnown = rowEl.querySelector('[name="isKnown"]').checked;
+            const override = rowEl.querySelector('[name="override"]').value.trim() || null;
+            const flavorOverride = rowEl.querySelector('[name="flavorOverride"]').value.trim() || null;
+            await DataManager.setRelationship(actor, row.id, {
+              hiddenPoints: isNaN(hp) ? 0 : hp,
+              isKnown,
+              playerLabelOverride: override,
+              playerFlavorOverride: flavorOverride,
+            });
+          }
+          return true;
+        },
+      },
     });
 
-    pickerRow.append(pickerLbl, select);
-    wrap.appendChild(pickerRow);
-
-    // NPC rows
-    const list = document.createElement('div');
-    list.classList.add('rrt-rel-list');
-
-    if (!this._selectedActorId) {
-      const hint = document.createElement('p');
-      hint.classList.add('rrt-empty');
-      hint.textContent = game.i18n.localize('RRT.gmManager.selectCharacter');
-      list.appendChild(hint);
-      wrap.appendChild(list);
-      return wrap;
+    if (saved) {
+      ui.notifications.info(game.i18n.localize('RRT.gmManager.relsSaved'));
+      this.render();
     }
-
-    const actor = game.actors.get(this._selectedActorId);
-    if (!actor) { wrap.appendChild(list); return wrap; }
-
-    // Flatten all non-category nodes from the tree
-    const npcNodes = [];
-    function walkForRel(factions) {
-      const sorted = Object.values(factions).sort((a, b) => a.name.localeCompare(b.name));
-      for (const node of sorted) {
-        if (node.type !== 'category') npcNodes.push(node);
-        if (node.subfactions) walkForRel(node.subfactions);
-      }
-    }
-    walkForRel(context.factions);
-
-    for (const node of npcNodes) {
-      const rel = DataManager.getRelationship(actor, node.id);
-      const row = document.createElement('div');
-      row.classList.add('rrt-rel-row');
-
-      const nameEl = document.createElement('span');
-      nameEl.classList.add('rrt-rel-name');
-      nameEl.textContent = node.name;
-
-      const controls = document.createElement('div');
-      controls.classList.add('rrt-rel-controls');
-
-      const hpInput = document.createElement('input');
-      hpInput.type = 'number';
-      hpInput.classList.add('rrt-rel-hp');
-      hpInput.value = rel.hiddenPoints ?? 0;
-      hpInput.title = 'Hidden Points';
-
-      const knownLabel = document.createElement('label');
-      knownLabel.classList.add('rrt-rel-known-label');
-      const knownCb = document.createElement('input');
-      knownCb.type = 'checkbox';
-      knownCb.checked = rel.isKnown ?? false;
-      knownLabel.append(knownCb, document.createTextNode(game.i18n.localize('RRT.gmManager.isKnown')));
-
-      const saveBtn = document.createElement('button');
-      saveBtn.type = 'button';
-      saveBtn.classList.add('rrt-btn', 'rrt-btn-add', 'rrt-rel-save');
-      saveBtn.textContent = game.i18n.localize('RRT.gmManager.saveRelationship');
-      saveBtn.addEventListener('click', async () => {
-        const hp = parseInt(hpInput.value, 10);
-        await DataManager.setRelationship(actor, node.id, {
-          hiddenPoints: isNaN(hp) ? 0 : hp,
-          isKnown: knownCb.checked,
-        });
-        this.render();
-      });
-
-      controls.append(hpInput, knownLabel, saveBtn);
-      row.append(nameEl, controls);
-      list.appendChild(row);
-    }
-
-    wrap.appendChild(list);
-    return wrap;
   }
 
   // ── Declarations queue ────────────────────────────────────────────────────
@@ -448,6 +470,7 @@ export class GmReputationManager extends ApplicationV2 {
     const defaultPts = calculatePoints(d.impactLevel, d.direction, impactWeights);
 
     const rawVal = await DialogV2.prompt({
+      classes: ['rrt-themed-dialog'],
       window: { title: game.i18n.localize('RRT.gmManager.editPointsTitle') },
       content: `<label>${game.i18n.localize('RRT.gmManager.editPointsPrompt')}<input type="number" name="pts" value="${defaultPts}" autofocus /></label>`,
       ok: {
@@ -472,6 +495,7 @@ export class GmReputationManager extends ApplicationV2 {
 
   async _onReject(d) {
     const confirmed = await DialogV2.confirm({
+      classes: ['rrt-themed-dialog'],
       window: { title: game.i18n.localize('RRT.gmManager.rejectTitle') },
       content: game.i18n.localize('RRT.gmManager.rejectConfirm'),
     });
@@ -495,6 +519,7 @@ export class GmReputationManager extends ApplicationV2 {
 
   async _onAddNode(parent, type) {
     const name = await DialogV2.prompt({
+      classes: ['rrt-themed-dialog'],
       window: { title: game.i18n.localize(`RRT.gmManager.add${this._capitalize(type)}Title`) },
       content: `<label>${game.i18n.localize('RRT.gmManager.nameLabel')}<input type="text" name="name" autofocus /></label>`,
       ok: {
@@ -534,6 +559,7 @@ export class GmReputationManager extends ApplicationV2 {
 
   async _onEdit(row) {
     const result = await DialogV2.prompt({
+      classes: ['rrt-themed-dialog'],
       window: { title: game.i18n.localize('RRT.gmManager.editTitle') },
       content: this._buildEditForm(row),
       ok: {
@@ -583,6 +609,7 @@ export class GmReputationManager extends ApplicationV2 {
 
   async _onDelete(row) {
     const confirmed = await DialogV2.confirm({
+      classes: ['rrt-themed-dialog'],
       window: { title: game.i18n.localize('RRT.gmManager.deleteTitle') },
       content: game.i18n.format('RRT.gmManager.deleteConfirm', { name: row.name }),
     });
@@ -592,14 +619,12 @@ export class GmReputationManager extends ApplicationV2 {
     this._deleteFromTree(factions, row.id);
     await DataManager.setFactions(factions);
 
-    // Cascade: remove orphaned relationships and declarations
     await DataManager.cleanupOrphanedRelations();
     await DataManager.removeDeclarationsForNpc(row.id);
 
     this.render();
   }
 
-  // Recursively remove a node by id from any level of the tree
   _deleteFromTree(container, id) {
     if (container[id]) {
       delete container[id];
